@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Math in Nature — Pattern Sandbox</title>
+<style>
+  * { box-sizing: border-box; margin:0; padding:0; }
+  body {
+    background:#040813; color:#e2e8f0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    min-height:100vh; padding:16px; display:flex; flex-direction:column; gap:14px;
+  }
+  header { max-width:900px; margin:0 auto; width:100%; }
+  h1 {
+    font-size:22px; font-weight:700;
+    background:linear-gradient(135deg,#f8fafc 0%,#38bdf8 100%);
+    -webkit-background-clip:text; -webkit-text-fill-color:transparent;
+  }
+  .subtitle { font-size:12.5px; color:#94a3b8; margin-top:4px; }
+  main { max-width:900px; margin:0 auto; width:100%; display:flex; flex-direction:column; gap:12px; }
+
+  .mode-tabs { display:flex; gap:8px; flex-wrap:wrap; }
+  .mode-btn {
+    background:#0b1426; border:1px solid #1e293b; color:#94a3b8;
+    padding:8px 14px; border-radius:8px; font-size:12.5px; font-weight:600;
+    cursor:pointer; transition:all .15s;
+  }
+  .mode-btn:hover { border-color:#38bdf8; color:#f8fafc; }
+  .mode-btn.active { background:#1e3a8a; border-color:#60a5fa; color:#fff; box-shadow:0 0 10px rgba(96,165,250,.35); }
+
+  .canvas-wrap {
+    background:#020409; border:1px solid #1e293b; border-radius:10px;
+    overflow:hidden; display:flex; justify-content:center; box-shadow:0 8px 24px rgba(0,0,0,.45);
+  }
+  canvas { display:block; max-width:100%; height:auto; cursor:crosshair; touch-action:none; }
+
+  .panel {
+    background:#080d1a; border:1px solid #1e293b; border-radius:10px; padding:14px 16px;
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .panel h2 { font-size:12.5px; text-transform:uppercase; letter-spacing:.7px; color:#cbd5e1; }
+  .controls-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; }
+  .control { display:flex; flex-direction:column; gap:4px; }
+  .control label { font-size:11px; color:#94a3b8; display:flex; justify-content:space-between; }
+  .control label span.val { color:#38bdf8; font-family:"JetBrains Mono",monospace; }
+  input[type=range] { width:100%; accent-color:#38bdf8; }
+
+  .preset-row { display:flex; gap:8px; flex-wrap:wrap; }
+  .preset-btn {
+    background:#0f172a; border:1px solid #334155; color:#94a3b8;
+    padding:6px 10px; border-radius:6px; font-size:11px; cursor:pointer;
+  }
+  .preset-btn:hover { border-color:#38bdf8; color:#f8fafc; }
+
+  .stats {
+    font-family:"JetBrains Mono",monospace; font-size:11.5px; color:#94a3b8;
+    background:#040711; border:1px solid #111827; border-radius:6px; padding:10px 12px;
+    display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:6px;
+  }
+  .stats b { color:#f1f5f9; }
+  .stats .hl { color:#22c55e; }
+
+  footer { max-width:900px; margin:0 auto; width:100%; text-align:center; font-size:11px; color:#475569; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>MATH IN NATURE — PATTERN SANDBOX</h1>
+  <p class="subtitle">Turing reaction-diffusion, logarithmic spirals, and the Mandelbrot set — same handful of local rules, wildly different worlds.</p>
+</header>
+
+<main>
+  <div class="mode-tabs">
+    <button class="mode-btn active" data-mode="rd">🦫 Reaction-Diffusion</button>
+    <button class="mode-btn" data-mode="spiral">🌀 Logarithmic Spiral</button>
+    <button class="mode-btn" data-mode="mandelbrot">🔬 Mandelbrot Zoom</button>
+  </div>
+
+  <div class="canvas-wrap">
+    <canvas id="cv" width="640" height="480"></canvas>
+  </div>
+
+  <div class="panel" id="panel-rd">
+    <h2>Gray-Scott Reaction-Diffusion</h2>
+    <div class="preset-row">
+      <button class="preset-btn" data-preset="spots">Spots (Leopard)</button>
+      <button class="preset-btn" data-preset="stripes">Stripes (Zebra)</button>
+      <button class="preset-btn" data-preset="coral">Coral / Maze</button>
+      <button class="preset-btn" data-preset="mitosis">Mitosis (Dividing Blobs)</button>
+      <button class="preset-btn" data-preset="worms">Worms</button>
+    </div>
+    <div class="controls-grid">
+      <div class="control"><label>Feed rate (F) <span class="val" id="v-feed"></span></label><input type="range" id="feed" min="0.01" max="0.1" step="0.001" /></div>
+      <div class="control"><label>Kill rate (k) <span class="val" id="v-kill"></span></label><input type="range" id="kill" min="0.03" max="0.08" step="0.0005" /></div>
+      <div class="control"><label>Diffusion Du <span class="val" id="v-du"></span></label><input type="range" id="du" min="0.05" max="0.3" step="0.005" /></div>
+      <div class="control"><label>Diffusion Dv <span class="val" id="v-dv"></span></label><input type="range" id="dv" min="0.02" max="0.15" step="0.005" /></div>
+      <div class="control"><label>Steps/frame <span class="val" id="v-steps"></span></label><input type="range" id="steps" min="1" max="20" step="1" /></div>
+    </div>
+    <p class="subtitle">Click/tap the canvas to seed a fresh blob of activator chemical. Reset reseeds randomly.</p>
+    <div class="preset-row"><button class="preset-btn" id="rd-reset">↺ Reset / Reseed</button></div>
+    <div class="stats" id="rd-stats"></div>
+  </div>
+
+  <div class="panel" id="panel-spiral" style="display:none">
+    <h2>Logarithmic Spiral · r = a·e^(b·θ)</h2>
+    <div class="controls-grid">
+      <div class="control"><label>Growth rate b <span class="val" id="v-b"></span></label><input type="range" id="growth" min="0.05" max="0.5" step="0.005" /></div>
+      <div class="control"><label>Arms <span class="val" id="v-arms"></span></label><input type="range" id="arms" min="1" max="12" step="1" /></div>
+      <div class="control"><label>Turns <span class="val" id="v-turns"></span></label><input type="range" id="turns" min="1" max="10" step="0.5" /></div>
+      <div class="control"><label>Rotation speed <span class="val" id="v-rot"></span></label><input type="range" id="rotspeed" min="0" max="3" step="0.05" /></div>
+      <div class="control"><label>Sine wobble <span class="val" id="v-wobble"></span></label><input type="range" id="wobble" min="0" max="1" step="0.02" /></div>
+      <div class="control"><label>Hue shift <span class="val" id="v-hue"></span></label><input type="range" id="hue" min="0" max="360" step="1" /></div>
+    </div>
+    <div class="stats" id="spiral-stats"></div>
+  </div>
+
+  <div class="panel" id="panel-mandelbrot" style="display:none">
+    <h2>Mandelbrot Set — c = x + yi, z(n+1) = z(n)² + c</h2>
+    <div class="controls-grid">
+      <div class="control"><label>Max iterations <span class="val" id="v-iter"></span></label><input type="range" id="maxiter" min="30" max="500" step="10" /></div>
+      <div class="control"><label>Color cycle <span class="val" id="v-cycle"></span></label><input type="range" id="colorcycle" min="1" max="20" step="1" /></div>
+    </div>
+    <p class="subtitle">Click to zoom in on that point. Double-click (or long-press) to reset the view.</p>
+    <div class="preset-row"><button class="preset-btn" id="mb-reset">↺ Reset View</button></div>
+    <div class="stats" id="mb-stats"></div>
+  </div>
+</main>
+
+<footer>Built with vanilla HTML/Canvas/JS — no libraries, no build step. Open this file directly in any browser.</footer>
+
+<script>
+const canvas = document.getElementById('cv');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+let mode = 'rd';
+document.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    mode = btn.dataset.mode;
+    ['rd','spiral','mandelbrot'].forEach(m => {
+      document.getElementById('panel-'+m).style.display = (m === mode) ? 'flex' : 'none';
+    });
+  });
+});
+
+const RD_SIZE = 160;
+let u = new Float32Array(RD_SIZE * RD_SIZE);
+let v = new Float32Array(RD_SIZE * RD_SIZE);
+let uNext = new Float32Array(RD_SIZE * RD_SIZE);
+let vNext = new Float32Array(RD_SIZE * RD_SIZE);
+
+let rdParams = { feed: 0.037, kill: 0.06, du: 0.16, dv: 0.08, steps: 8 };
+let rdTick = 0;
+
+function idx(x, y) { return ((y + RD_SIZE) % RD_SIZE) * RD_SIZE + ((x + RD_SIZE) % RD_SIZE); }
+
+function rdReset() {
+  u.fill(1); v.fill(0);
+  for (let i = 0; i < 6; i++) seedBlob(
+    Math.floor(Math.random() * RD_SIZE),
+    Math.floor(Math.random() * RD_SIZE)
+  );
+  rdTick = 0;
+}
+
+function seedBlob(cx, cy) {
+  const r = 5;
+  for (let dx = -r; dx <= r; dx++) {
+    for (let dy = -r; dy <= r; dy++) {
+      if (dx*dx + dy*dy <= r*r) {
+        const i = idx(cx + dx, cy + dy);
+        u[i] = 0.5 + (Math.random() * 0.1 - 0.05);
+        v[i] = 0.25 + (Math.random() * 0.1 - 0.05);
+      }
+    }
+  }
+}
+
+function rdStep() {
+  const { feed, kill, du, dv } = rdParams;
+  for (let y = 0; y < RD_SIZE; y++) {
+    for (let x = 0; x < RD_SIZE; x++) {
+      const i = idx(x, y);
+      const lapU = u[idx(x+1,y)] + u[idx(x-1,y)] + u[idx(x,y+1)] + u[idx(x,y-1)] - 4*u[i];
+      const lapV = v[idx(x+1,y)] + v[idx(x-1,y)] + v[idx(x,y+1)] + v[idx(x,y-1)] - 4*v[i];
+      const uu = u[i], vv = v[i];
+      const reaction = uu * vv * vv;
+      uNext[i] = uu + (du * lapU - reaction + feed * (1 - uu));
+      vNext[i] = vv + (dv * lapV + reaction - (kill + feed) * vv);
+    }
+  }
+  [u, uNext] = [uNext, u];
+  [v, vNext] = [vNext, v];
+  rdTick++;
+}
+
+function rdRender() {
+  const imgData = ctx.createImageData(W, H);
+  const scaleX = RD_SIZE / W, scaleY = RD_SIZE / H;
+  for (let py = 0; py < H; py++) {
+    for (let px = 0; px < W; px++) {
+      const sx = Math.floor(px * scaleX), sy = Math.floor(py * scaleY);
+      const i = idx(sx, sy);
+      const val = Math.max(0, Math.min(1, u[i] - v[i] + 0.5));
+      const off = (py * W + px) * 4;
+      imgData.data[off]   = Math.round(20 + val * 40);
+      imgData.data[off+1] = Math.round(30 + val * 200);
+      imgData.data[off+2] = Math.round(60 + val * 180);
+      imgData.data[off+3] = 255;
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+}
+
+function rdEntropyEstimate() {
+  let mean = 0;
+  for (let i = 0; i < u.length; i++) mean += u[i];
+  mean /= u.length;
+  let variance = 0;
+  for (let i = 0; i < u.length; i++) variance += (u[i]-mean)*(u[i]-mean);
+  variance /= u.length;
+  return variance;
+}
+
+const rdPresets = {
+  spots:   { feed:0.030, kill:0.062, du:0.16, dv:0.08 },
+  stripes: { feed:0.040, kill:0.060, du:0.19, dv:0.05 },
+  coral:   { feed:0.055, kill:0.062, du:0.16, dv:0.08 },
+  mitosis: { feed:0.025, kill:0.055, du:0.16, dv:0.08 },
+  worms:   { feed:0.078, kill:0.061, du:0.16, dv:0.08 },
+};
+
+function applyRdParamsToUI() {
+  document.getElementById('feed').value = rdParams.feed;
+  document.getElementById('kill').value = rdParams.kill;
+  document.getElementById('du').value = rdParams.du;
+  document.getElementById('dv').value = rdParams.dv;
+  document.getElementById('steps').value = rdParams.steps;
+  syncRdLabels();
+}
+
+function syncRdLabels() {
+  document.getElementById('v-feed').textContent = rdParams.feed.toFixed(3);
+  document.getElementById('v-kill').textContent = rdParams.kill.toFixed(4);
+  document.getElementById('v-du').textContent = rdParams.du.toFixed(3);
+  document.getElementById('v-dv').textContent = rdParams.dv.toFixed(3);
+  document.getElementById('v-steps').textContent = rdParams.steps;
+}
+
+['feed','kill','du','dv','steps'].forEach(key => {
+  document.getElementById(key).addEventListener('input', e => {
+    rdParams[key] = parseFloat(e.target.value);
+    syncRdLabels();
+  });
+});
+
+document.querySelectorAll('[data-preset]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    Object.assign(rdParams, rdPresets[btn.dataset.preset]);
+    applyRdParamsToUI();
+    rdReset();
+  });
+});
+
+document.getElementById('rd-reset').addEventListener('click', rdReset);
+
+canvas.addEventListener('pointerdown', (e) => {
+  if (mode !== 'rd') return;
+  const rect = canvas.getBoundingClientRect();
+  const px = Math.floor((e.clientX - rect.left) * (canvas.width / rect.width));
+  const py = Math.floor((e.clientY - rect.top) * (canvas.height / rect.height));
+  const sx = Math.floor(px * RD_SIZE / W), sy = Math.floor(py * RD_SIZE / H);
+  seedBlob(sx, sy);
+});
+
+let spiralParams = { growth:0.18, arms:3, turns:4, rotspeed:0.4, wobble:0.15, hue:180 };
+let spiralTime = 0;
+
+function syncSpiralLabels() {
+  document.getElementById('v-b').textContent = spiralParams.growth.toFixed(3);
+  document.getElementById('v-arms').textContent = spiralParams.arms;
+  document.getElementById('v-turns').textContent = spiralParams.turns;
+  document.getElementById('v-rot').textContent = spiralParams.rotspeed.toFixed(2);
+  document.getElementById('v-wobble').textContent = spiralParams.wobble.toFixed(2);
+  document.getElementById('v-hue').textContent = spiralParams.hue;
+}
+
+[['growth','growth'],['arms','arms'],['turns','turns'],['rotspeed','rotspeed'],['wobble','wobble'],['hue','hue']].forEach(([id,key]) => {
+  const el = document.getElementById(id);
+  el.addEventListener('input', e => {
+    spiralParams[key] = parseFloat(e.target.value);
+    syncSpiralLabels();
+  });
+});
+
+function initSpiralUI() {
+  document.getElementById('growth').value = spiralParams.growth;
+  document.getElementById('arms').value = spiralParams.arms;
+  document.getElementById('turns').value = spiralParams.turns;
+  document.getElementById('rotspeed').value = spiralParams.rotspeed;
+  document.getElementById('wobble').value = spiralParams.wobble;
+  document.getElementById('hue').value = spiralParams.hue;
+  syncSpiralLabels();
+}
+
+function renderSpiral() {
+  ctx.fillStyle = '#020409';
+  ctx.fillRect(0, 0, W, H);
+
+  const cx = W/2, cy = H/2;
+  const maxTheta = spiralParams.turns * Math.PI * 2;
+  const a = 4;
+
+  for (let arm = 0; arm < spiralParams.arms; arm++) {
+    const armOffset = (Math.PI * 2 / spiralParams.arms) * arm;
+    const hue = (spiralParams.hue + arm * (360/spiralParams.arms)) % 360;
+    ctx.strokeStyle = `hsl(${hue}, 85%, 60%)`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    let first = true;
+    for (let theta = 0; theta <= maxTheta; theta += 0.02) {
+      const r = a * Math.exp(spiralParams.growth * theta);
+      if (r > Math.max(W,H)) break;
+      const wobbleOffset = Math.sin(theta * 3 + spiralTime) * spiralParams.wobble * r * 0.15;
+      const angle = theta + armOffset + spiralTime * spiralParams.rotspeed;
+      const x = cx + (r + wobbleOffset) * Math.cos(angle);
+      const y = cy + (r + wobbleOffset) * Math.sin(angle);
+      if (first) { ctx.moveTo(x,y); first = false; } else { ctx.lineTo(x,y); }
+    }
+    ctx.stroke();
+
+    const tipTheta = maxTheta;
+    const tipR = a * Math.exp(spiralParams.growth * tipTheta);
+    if (tipR < Math.max(W,H)) {
+      const tipAngle = tipTheta + armOffset + spiralTime * spiralParams.rotspeed;
+      const tx = cx + tipR * Math.cos(tipAngle);
+      const ty = cy + tipR * Math.sin(tipAngle);
+      ctx.fillStyle = `hsl(${hue}, 100%, 75%)`;
+      ctx.beginPath(); ctx.arc(tx, ty, 4, 0, Math.PI*2); ctx.fill();
+    }
+  }
+  spiralTime += 0.01;
+}
+
+let mbView = { cx: -0.5, cy: 0, scale: 3.0 };
+let mbParams = { maxiter: 150, colorcycle: 6 };
+
+function syncMbLabels() {
+  document.getElementById('v-iter').textContent = mbParams.maxiter;
+  document.getElementById('v-cycle').textContent = mbParams.colorcycle;
+}
+
+document.getElementById('maxiter').addEventListener('input', e => { mbParams.maxiter = parseInt(e.target.value); syncMbLabels(); renderMandelbrot(); });
+document.getElementById('colorcycle').addEventListener('input', e => { mbParams.colorcycle = parseInt(e.target.value); syncMbLabels(); renderMandelbrot(); });
+document.getElementById('mb-reset').addEventListener('click', () => { mbView = { cx:-0.5, cy:0, scale:3.0 }; renderMandelbrot(); });
+
+function mandelIter(px0, py0, maxiter) {
+  let x = 0, y = 0, x2 = 0, y2 = 0, iter = 0;
+  while (x2 + y2 <= 4 && iter < maxiter) {
+    y = 2*x*y + py0;
+    x = x2 - y2 + px0;
+    x2 = x*x; y2 = y*y;
+    iter++;
+  }
+  return iter;
+}
+
+function renderMandelbrot() {
+  const imgData = ctx.createImageData(W, H);
+  const { cx, cy, scale } = mbView;
+  const aspect = H / W;
+  for (let py = 0; py < H; py++) {
+    const y0 = cy + (py / H - 0.5) * scale * aspect;
+    for (let px = 0; px < W; px++) {
+      const x0 = cx + (px / W - 0.5) * scale;
+      const iter = mandelIter(x0, y0, mbParams.maxiter);
+      const off = (py * W + px) * 4;
+      if (iter === mbParams.maxiter) {
+        imgData.data[off] = 4; imgData.data[off+1] = 8; imgData.data[off+2] = 20; imgData.data[off+3] = 255;
+      } else {
+        const hue = (iter * mbParams.colorcycle) % 360;
+        const [r,g,b] = hslToRgb(hue/360, 0.75, 0.5 + 0.15*Math.sin(iter*0.3));
+        imgData.data[off]=r; imgData.data[off+1]=g; imgData.data[off+2]=b; imgData.data[off+3]=255;
+      }
+    }
+  }
+  ctx.putImageData(imgData, 0, 0);
+  document.getElementById('mb-stats').innerHTML =
+    `Center: <b>${mbView.cx.toFixed(6)}, ${mbView.cy.toFixed(6)}</b><br>` +
+    `Zoom scale: <b>${mbView.scale.toExponential(3)}</b><br>` +
+    `Max iterations: <b>${mbParams.maxiter}</b>`;
+}
+
+function hslToRgb(h, s, l) {
+  let r,g,b;
+  if (s === 0) { r=g=b=l; }
+  else {
+    const hue2rgb = (p,q,t) => {
+      if (t<0) t+=1; if (t>1) t-=1;
+      if (t<1/6) return p+(q-p)*6*t;
+      if (t<1/2) return q;
+      if (t<2/3) return p+(q-p)*(2/3-t)*6;
+      return p;
+    };
+    const q = l < 0.5 ? l*(1+s) : l+s-l*s;
+    const p = 2*l-q;
+    r = hue2rgb(p,q,h+1/3); g = hue2rgb(p,q,h); b = hue2rgb(p,q,h-1/3);
+  }
+  return [Math.round(r*255), Math.round(g*255), Math.round(b*255)];
+}
+
+let mbLastTap = 0;
+canvas.addEventListener('pointerdown', (e) => {
+  if (mode !== 'mandelbrot') return;
+  const now = Date.now();
+  const rect = canvas.getBoundingClientRect();
+  const px = (e.clientX - rect.left) / rect.width;
+  const py = (e.clientY - rect.top) / rect.height;
+  const aspect = H / W;
+  const clickX = mbView.cx + (px - 0.5) * mbView.scale;
+  const clickY = mbView.cy + (py - 0.5) * mbView.scale * aspect;
+
+  if (now - mbLastTap < 350) {
+    mbView = { cx:-0.5, cy:0, scale:3.0 };
+  } else {
+    mbView.cx = clickX; mbView.cy = clickY; mbView.scale *= 0.35;
+  }
+  mbLastTap = now;
+  renderMandelbrot();
+});
+
+function loop() {
+  if (mode === 'rd') {
+    for (let s = 0; s < rdParams.steps; s++) rdStep();
+    rdRender();
+    const variance = rdEntropyEstimate();
+    document.getElementById('rd-stats').innerHTML =
+      `Tick: <b>${rdTick}</b> &nbsp; | &nbsp; Spatial variance (complexity proxy): <span class="hl">${variance.toFixed(6)}</span><br>` +
+      `∂u/∂t = D<sub>u</sub>∇²u − uv² + F(1−u) &nbsp;&nbsp; ∂v/∂t = D<sub>v</sub>∇²v + uv² − (k+F)v`;
+  } else if (mode === 'spiral') {
+    renderSpiral();
+    const currentTheta = (spiralTime * spiralParams.rotspeed) % (Math.PI*2);
+    document.getElementById('spiral-stats').innerHTML =
+      `θ (live rotation phase): <b>${currentTheta.toFixed(3)} rad</b><br>` +
+      `r at θ=2π: <b>${(4*Math.exp(spiralParams.growth*Math.PI*2)).toFixed(2)}px</b> &nbsp; | &nbsp; ` +
+      `Pitch angle: <b>${(Math.atan(spiralParams.growth)*180/Math.PI).toFixed(2)}°</b> (constant for any log spiral — this is why nautilus shells self-similarly scale)`;
+  }
+  requestAnimationFrame(loop);
+}
+
+applyRdParamsToUI();
+rdReset();
+initSpiralUI();
+syncMbLabels();
+renderMandelbrot();
+loop();
+</script>
+</body>
+</html>
