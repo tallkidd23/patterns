@@ -73,7 +73,7 @@
 
 <main>
   <div class="mode-tabs">
-    <button class="mode-btn active" data-mode="rd">🦫 Reaction-Diffusion</button>
+    <button class="mode-btn active" data-mode="rd">🧫 Reaction-Diffusion</button>
     <button class="mode-btn" data-mode="spiral">🌀 Logarithmic Spiral</button>
     <button class="mode-btn" data-mode="mandelbrot">🔬 Mandelbrot Zoom</button>
   </div>
@@ -82,6 +82,7 @@
     <canvas id="cv" width="640" height="480"></canvas>
   </div>
 
+  <!-- Reaction-Diffusion controls -->
   <div class="panel" id="panel-rd">
     <h2>Gray-Scott Reaction-Diffusion</h2>
     <div class="preset-row">
@@ -89,7 +90,8 @@
       <button class="preset-btn" data-preset="stripes">Stripes (Zebra)</button>
       <button class="preset-btn" data-preset="coral">Coral / Maze</button>
       <button class="preset-btn" data-preset="mitosis">Mitosis (Dividing Blobs)</button>
-      <button class="preset-btn" data-preset="worms">Worms</button>
+      <button class="preset-btn" data-preset="worms">Worms (Solitons)</button>
+      <button class="preset-btn" data-preset="chaos">Chaos / U-Skate</button>
     </div>
     <div class="controls-grid">
       <div class="control"><label>Feed rate (F) <span class="val" id="v-feed"></span></label><input type="range" id="feed" min="0.01" max="0.1" step="0.001" /></div>
@@ -103,6 +105,7 @@
     <div class="stats" id="rd-stats"></div>
   </div>
 
+  <!-- Spiral controls -->
   <div class="panel" id="panel-spiral" style="display:none">
     <h2>Logarithmic Spiral · r = a·e^(b·θ)</h2>
     <div class="controls-grid">
@@ -116,6 +119,7 @@
     <div class="stats" id="spiral-stats"></div>
   </div>
 
+  <!-- Mandelbrot controls -->
   <div class="panel" id="panel-mandelbrot" style="display:none">
     <h2>Mandelbrot Set — c = x + yi, z(n+1) = z(n)² + c</h2>
     <div class="controls-grid">
@@ -147,6 +151,9 @@ document.querySelectorAll('.mode-btn').forEach(btn => {
   });
 });
 
+// ============================================================
+// MODE 1: Gray-Scott Reaction-Diffusion
+// ============================================================
 const RD_SIZE = 160;
 let u = new Float32Array(RD_SIZE * RD_SIZE);
 let v = new Float32Array(RD_SIZE * RD_SIZE);
@@ -160,7 +167,7 @@ function idx(x, y) { return ((y + RD_SIZE) % RD_SIZE) * RD_SIZE + ((x + RD_SIZE)
 
 function rdReset() {
   u.fill(1); v.fill(0);
-  for (let i = 0; i < 6; i++) seedBlob(
+  for (let i = 0; i < 8; i++) seedBlob(
     Math.floor(Math.random() * RD_SIZE),
     Math.floor(Math.random() * RD_SIZE)
   );
@@ -168,13 +175,13 @@ function rdReset() {
 }
 
 function seedBlob(cx, cy) {
-  const r = 5;
+  const r = 6;
   for (let dx = -r; dx <= r; dx++) {
     for (let dy = -r; dy <= r; dy++) {
       if (dx*dx + dy*dy <= r*r) {
         const i = idx(cx + dx, cy + dy);
-        u[i] = 0.5 + (Math.random() * 0.1 - 0.05);
-        v[i] = 0.25 + (Math.random() * 0.1 - 0.05);
+        u[i] = 0.5;
+        v[i] = 0.25;
       }
     }
   }
@@ -189,8 +196,8 @@ function rdStep() {
       const lapV = v[idx(x+1,y)] + v[idx(x-1,y)] + v[idx(x,y+1)] + v[idx(x,y-1)] - 4*v[i];
       const uu = u[i], vv = v[i];
       const reaction = uu * vv * vv;
-      uNext[i] = uu + (du * lapU - reaction + feed * (1 - uu));
-      vNext[i] = vv + (dv * lapV + reaction - (kill + feed) * vv);
+      uNext[i] = Math.max(0, Math.min(1, uu + (du * lapU - reaction + feed * (1 - uu))));
+      vNext[i] = Math.max(0, Math.min(1, vv + (dv * lapV + reaction - (kill + feed) * vv)));
     }
   }
   [u, uNext] = [uNext, u];
@@ -227,11 +234,12 @@ function rdEntropyEstimate() {
 }
 
 const rdPresets = {
-  spots:   { feed:0.030, kill:0.062, du:0.16, dv:0.08 },
+  spots:   { feed:0.035, kill:0.065, du:0.16, dv:0.08 },
   stripes: { feed:0.040, kill:0.060, du:0.19, dv:0.05 },
   coral:   { feed:0.055, kill:0.062, du:0.16, dv:0.08 },
-  mitosis: { feed:0.025, kill:0.055, du:0.16, dv:0.08 },
-  worms:   { feed:0.078, kill:0.061, du:0.16, dv:0.08 },
+  mitosis: { feed:0.028, kill:0.062, du:0.16, dv:0.08 },
+  worms:   { feed:0.038, kill:0.061, du:0.16, dv:0.08 },
+  chaos:   { feed:0.026, kill:0.055, du:0.16, dv:0.08 }
 };
 
 function applyRdParamsToUI() {
@@ -277,6 +285,9 @@ canvas.addEventListener('pointerdown', (e) => {
   seedBlob(sx, sy);
 });
 
+// ============================================================
+// MODE 2: Logarithmic Spiral
+// ============================================================
 let spiralParams = { growth:0.18, arms:3, turns:4, rotspeed:0.4, wobble:0.15, hue:180 };
 let spiralTime = 0;
 
@@ -346,6 +357,9 @@ function renderSpiral() {
   spiralTime += 0.01;
 }
 
+// ============================================================
+// MODE 3: Mandelbrot Zoom
+// ============================================================
 let mbView = { cx: -0.5, cy: 0, scale: 3.0 };
 let mbParams = { maxiter: 150, colorcycle: 6 };
 
@@ -433,6 +447,9 @@ canvas.addEventListener('pointerdown', (e) => {
   renderMandelbrot();
 });
 
+// ============================================================
+// Main animation loop
+// ============================================================
 function loop() {
   if (mode === 'rd') {
     for (let s = 0; s < rdParams.steps; s++) rdStep();
@@ -452,6 +469,7 @@ function loop() {
   requestAnimationFrame(loop);
 }
 
+// init
 applyRdParamsToUI();
 rdReset();
 initSpiralUI();
