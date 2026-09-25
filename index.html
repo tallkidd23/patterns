@@ -2,10 +2,10 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <title>Math in Nature — Pattern Sandbox</title>
 <style>
-  * { box-sizing: border-box; margin:0; padding:0; }
+  * { box-sizing: border-box; margin:0; padding:0; -webkit-tap-highlight-color: transparent; }
   body {
     background:#040813; color:#e2e8f0;
     font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
@@ -40,18 +40,93 @@
     display:flex; flex-direction:column; gap:10px;
   }
   .panel h2 { font-size:12.5px; text-transform:uppercase; letter-spacing:.7px; color:#cbd5e1; }
-  .controls-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; }
-  .control { display:flex; flex-direction:column; gap:4px; }
-  .control label { font-size:11px; color:#94a3b8; display:flex; justify-content:space-between; }
-  .control label span.val { color:#38bdf8; font-family:"JetBrains Mono",monospace; }
-  input[type=range] { width:100%; accent-color:#38bdf8; }
+  .controls-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; }
+  .control { display:flex; flex-direction:column; gap:8px; }
+  .control label { font-size:12px; font-weight:500; color:#cbd5e1; display:flex; justify-content:space-between; }
+  .control label span.val { color:#38bdf8; font-family:"JetBrains Mono",monospace; font-weight:700; }
+
+  /* Mobile-first, high-precision touch sliders */
+  input[type=range] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 100%;
+    height: 38px;
+    background: transparent;
+    cursor: grab;
+    touch-action: none;
+    padding: 0;
+    margin: 0;
+  }
+  input[type=range]:active {
+    cursor: grabbing;
+  }
+  input[type=range]:focus {
+    outline: none;
+  }
+
+  /* Slider Track */
+  input[type=range]::-webkit-slider-runnable-track {
+    width: 100%;
+    height: 8px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    transition: all 0.15s ease;
+  }
+  input[type=range]:active::-webkit-slider-runnable-track {
+    border-color: #38bdf8;
+    background: #1e293b;
+  }
+  input[type=range]::-moz-range-track {
+    width: 100%;
+    height: 8px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 6px;
+  }
+
+  /* Slider Thumb (Enlarged for effortless mobile finger pickup) */
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #38bdf8;
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.6), 0 2px 5px rgba(0,0,0,0.5);
+    margin-top: -9px;
+    cursor: grab;
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+  }
+  input[type=range]:active::-webkit-slider-thumb {
+    transform: scale(1.22);
+    background: #60a5fa;
+    box-shadow: 0 0 16px rgba(96, 165, 250, 0.9), 0 3px 8px rgba(0,0,0,0.6);
+  }
+
+  input[type=range]::-moz-range-thumb {
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: #38bdf8;
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.6);
+    cursor: grab;
+  }
+  input[type=range]:active::-moz-range-thumb {
+    transform: scale(1.22);
+    background: #60a5fa;
+  }
 
   .preset-row { display:flex; gap:8px; flex-wrap:wrap; }
   .preset-btn {
-    background:#0f172a; border:1px solid #334155; color:#94a3b8;
-    padding:6px 10px; border-radius:6px; font-size:11px; cursor:pointer;
+    background:#0f172a; border:1px solid #334155; color:#cbd5e1;
+    padding:8px 12px; border-radius:6px; font-size:12px; font-weight:500; cursor:pointer;
+    transition: all 0.15s;
   }
-  .preset-btn:hover { border-color:#38bdf8; color:#f8fafc; }
+  .preset-btn:hover { border-color:#38bdf8; color:#f8fafc; background: #13223f; }
+  .preset-btn:active { transform: scale(0.96); }
 
   .stats {
     font-family:"JetBrains Mono",monospace; font-size:11.5px; color:#94a3b8;
@@ -456,7 +531,7 @@ function loop() {
     rdRender();
     const variance = rdEntropyEstimate();
     document.getElementById('rd-stats').innerHTML =
-      `Tick: <b>${rdTick}</b> &nbsp; | &nbsp; Spatial variance (complexity proxy): <span class="hl">${variance.toFixed(6)}</span><br>` +
+      `Tick: <b>${rdTick}</b> &nbsp; | &nbsp; Spatial variance (complexity proxy): <span class=\"hl\">${variance.toFixed(6)}</span><br>` +
       `∂u/∂t = D<sub>u</sub>∇²u − uv² + F(1−u) &nbsp;&nbsp; ∂v/∂t = D<sub>v</sub>∇²v + uv² − (k+F)v`;
   } else if (mode === 'spiral') {
     renderSpiral();
